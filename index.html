@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TracSignal — P2P Crypto Intelligence Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #050810;
+    --panel: #0a0f1e;
+    --border: #1a2540;
+    --accent: #00f5d4;
+    --accent2: #ff3e6c;
+    --accent3: #ffd166;
+    --text: #c8d8ff;
+    --dim: #4a5a7a;
+    --green: #00e676;
+    --red: #ff3e6c;
+    --glow: 0 0 20px rgba(0,245,212,0.4);
+    --glow2: 0 0 20px rgba(255,62,108,0.4);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* SCANLINE OVERLAY */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events:none; z-index:9999;
+  }
+
+  /* GRID BG */
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,245,212,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,212,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none; z-index:0;
+  }
+
+  /* HEADER */
+  header {
+    position: sticky; top:0; z-index:100;
+    background: rgba(5,8,16,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items:center; justify-content:space-between;
+    height: 60px;
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+  .logo span { color: var(--accent2); }
+  .header-right { display:flex; gap:16px; align-items:center; }
+  .live-dot {
+    width:8px; height:8px; border-radius:50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+  .network-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+  }
+
+  /* TICKER TAPE */
+  .ticker-wrap {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    height: 36px;
+    display: flex; align-items:center;
+    position: relative;
+    z-index:1;
+  }
+  .ticker-label {
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing:2px;
+    padding: 0 12px;
+    height:100%;
+    display:flex; align-items:center;
+    flex-shrink:0;
+    z-index:2;
+  }
+  .ticker-track {
+    display:flex; gap:48px;
+    animation: ticker 30s linear infinite;
+    white-space: nowrap;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    padding: 0 24px;
+  }
+  @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .tick-item { display:flex; gap:8px; align-items:center; }
+  .tick-name { color: var(--dim); }
+  .tick-price { color: var(--text); }
+  .tick-chg.up { color: var(--green); }
+  .tick-chg.dn { color: var(--red); }
+
+  /* MAIN LAYOUT */
+  main {
+    position:relative; z-index:1;
+    display:grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: auto auto;
+    gap:16px;
+    padding:16px;
+    max-width:1400px;
+    margin: 0 auto;
+  }
+
+  /* PANEL STYLE */
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .panel-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,245,212,0.03);
+  }
+  .panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .panel-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* SIGNAL BOARD */
+  .signal-board { grid-column: 1; grid-row: 1; }
+  .signal-list { padding: 12px; display:flex; flex-direction:column; gap:8px; }
+  .signal-card {
+    border: 1px solid var(--border);
+    border-radius:4px;
+    padding: 14px 16px;
+    display:grid;
+    grid-template-columns: 80px 1fr auto auto;
+    gap: 12px;
+    align-items:center;
+    cursor:pointer;
+    transition: all 0.2s;
+    background: rgba(255,255,255,0.01);
+    position:relative;
+    overflow:hidden;
+  }
+  .signal-card::before {
+    content:'';
+    position:absolute; left:0; top:0; bottom:0;
+    width:3px;
+  }
+  .signal-card.buy::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .signal-card.sell::before { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .signal-card.neutral::before { background: var(--accent3); box-shadow: 0 0 8px var(--accent3); }
+  .signal-card:hover { border-color: var(--accent); background: rgba(0,245,212,0.04); transform: translateX(2px); }
+
+  .signal-badge {
+    display:inline-flex; align-items:center; justify-content:center;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-family:'Bebas Neue',sans-serif;
+    font-size: 15px;
+    letter-spacing:1px;
+  }
+  .signal-badge.buy { background: rgba(0,230,118,0.15); color: var(--green); border:1px solid rgba(0,230,118,0.4); }
+  .signal-badge.sell { background: rgba(255,62,108,0.15); color: var(--red); border:1px solid rgba(255,62,108,0.4); }
+  .signal-badge.neutral { background: rgba(255,209,102,0.15); color: var(--accent3); border:1px solid rgba(255,209,102,0.4); }
+
+  .signal-info { display:flex; flex-direction:column; gap:3px; }
+  .signal-pair { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:1px; color:#fff; }
+  .signal-meta { font-family:'Share Tech Mono',monospace; font-size:10px; color: var(--dim); }
+  .signal-meta span { color: var(--accent); }
+
+  .signal-conf { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .conf-label { font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--dim); }
+  .conf-bar-wrap { width:60px; height:4px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .conf-bar { height:100%; border-radius:2px; transition:width 1s ease; }
+  .conf-bar.high { background: var(--green); }
+  .conf-bar.med { background: var(--accent3); }
+  .conf-bar.low { background: var(--red); }
+  .conf-pct { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text); }
+
+  .signal-votes { display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .vote-btn {
+    background:none; border: 1px solid var(--border);
+    color:var(--dim); font-size:14px; width:28px; height:22px;
+    border-radius:2px; cursor:pointer; transition:all 0.15s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .vote-btn:hover.up { border-color:var(--green); color:var(--green); }
+  .vote-btn:hover.dn { border-color:var(--red); color:var(--red); }
+  .vote-count { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text); }
+
+  /* SUBMIT SIGNAL */
+  .submit-area { padding:12px 16px; border-top:1px solid var(--border); }
+  .submit-row { display:flex; gap:8px; }
+  .sig-input {
+    flex:1; background: rgba(255,255,255,0.03); border:1px solid var(--border);
+    color:var(--text); font-family:'Rajdhani',sans-serif; font-size:14px;
+    padding: 8px 12px; border-radius:3px; outline:none;
+    transition:border 0.2s;
+  }
+  .sig-input:focus { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,245,212,0.2); }
+  .sig-select {
+    background: rgba(255,255,255,0.03); border:1px solid var(--border);
+    color:var(--text); font-family:'Rajdhani',sans-serif; font-size:14px;
+    padding: 8px 10px; border-radius:3px; outline:none; cursor:pointer;
+  }
+  .sig-submit {
+    background: var(--accent); color: var(--bg);
+    border:none; font-family:'Bebas Neue',sans-serif;
+    font-size:16px; letter-spacing:2px;
+    padding: 8px 20px; border-radius:3px; cursor:pointer;
+    transition:all 0.2s; white-space:nowrap;
+  }
+  .sig-submit:hover { background:#fff; box-shadow: var(--glow); }
+
+  /* SIDEBAR */
+  .sidebar { grid-column:2; grid-row: 1 / 3; display:flex; flex-direction:column; gap:16px; }
+
+  /* ORACLE / PRICE FEED */
+  .oracle-list { padding:12px; display:flex; flex-direction:column; gap:6px; }
+  .oracle-row {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px;
+    border:1px solid var(--border); border-radius:3px;
+    transition:all 0.3s;
+  }
+  .oracle-row.flash-up { border-color: var(--green); background: rgba(0,230,118,0.05); }
+  .oracle-row.flash-dn { border-color: var(--red); background: rgba(255,62,108,0.05); }
+  .o-pair { font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:1px; }
+  .o-price { font-family:'Share Tech Mono',monospace; font-size:14px; color:#fff; }
+  .o-chg { font-family:'Share Tech Mono',monospace; font-size:11px; }
+  .o-chg.up { color:var(--green); }
+  .o-chg.dn { color:var(--red); }
+
+  /* SENTIMENT */
+  .sentiment-wrap { padding:16px; }
+  .sent-pair { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1px; color:var(--dim); margin-bottom:8px; }
+  .sent-bar-wrap { height:20px; border-radius:3px; overflow:hidden; display:flex; margin-bottom:6px; }
+  .sent-bull { background: linear-gradient(90deg, #00e676, #00b050); display:flex; align-items:center; justify-content:center; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--bg); font-weight:bold; transition:width 1s ease; }
+  .sent-bear { background: linear-gradient(90deg, #b00030, #ff3e6c); display:flex; align-items:center; justify-content:center; font-family:'Share Tech Mono',monospace; font-size:10px; color:#fff; font-weight:bold; transition:width 1s ease; }
+  .sent-labels { display:flex; justify-content:space-between; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); }
+  .sent-labels .bull-label { color:var(--green); }
+  .sent-labels .bear-label { color:var(--red); }
+
+  /* AGENT LOG */
+  .agent-log-list { padding:8px 12px; height:200px; overflow-y:auto; font-family:'Share Tech Mono',monospace; font-size:11px; line-height:1.8; }
+  .agent-log-list::-webkit-scrollbar { width:4px; }
+  .agent-log-list::-webkit-scrollbar-track { background:transparent; }
+  .agent-log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius:2px; }
+  .log-entry { display:flex; gap:8px; }
+  .log-time { color: var(--dim); flex-shrink:0; }
+  .log-agent { color: var(--accent); flex-shrink:0; }
+  .log-msg.buy-msg { color: var(--green); }
+  .log-msg.sell-msg { color: var(--red); }
+  .log-msg.info-msg { color: var(--text); }
+  .log-msg.warn-msg { color: var(--accent3); }
+
+  /* BOTTOM ROW */
+  .bottom-row { grid-column:1; grid-row:2; }
+  .stats-grid { display:grid; grid-template-columns: repeat(4,1fr); gap:1px; background:var(--border); }
+  .stat-cell {
+    background:var(--panel); padding:16px;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .stat-label { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:1px; }
+  .stat-value.green { color:var(--green); text-shadow: 0 0 10px rgba(0,230,118,0.5); }
+  .stat-value.red { color:var(--red); text-shadow: 0 0 10px rgba(255,62,108,0.5); }
+  .stat-value.cyan { color:var(--accent); text-shadow: var(--glow); }
+  .stat-value.yellow { color:var(--accent3); }
+  .stat-sub { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--dim); }
+
+  /* P2P NODES */
+  .nodes-wrap { padding:12px 16px; }
+  .nodes-vis { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .node-dot {
+    width:10px; height:10px; border-radius:50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: nodePulse 2s ease-in-out infinite;
+  }
+  .node-dot:nth-child(odd) { animation-delay: 0.5s; }
+  .node-dot:nth-child(3n) { animation-delay: 1s; background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .node-dot.offline { background: var(--border); box-shadow:none; animation:none; }
+  @keyframes nodePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+  .nodes-info { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim); }
+  .nodes-info strong { color:var(--accent); }
+
+  /* CHART MINI */
+  canvas { display:block; }
+  .chart-wrap { padding: 12px 16px 16px; }
+
+  /* FOOTER */
+  footer {
+    position:relative; z-index:1;
+    text-align:center; padding:20px;
+    border-top:1px solid var(--border);
+    font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--dim);
+  }
+  footer a { color:var(--accent); text-decoration:none; }
+
+  /* ANIMATE IN */
+  @keyframes slideIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .signal-card { animation: slideIn 0.3s ease both; }
+  .signal-card:nth-child(1){animation-delay:0.05s}
+  .signal-card:nth-child(2){animation-delay:0.1s}
+  .signal-card:nth-child(3){animation-delay:0.15s}
+  .signal-card:nth-child(4){animation-delay:0.2s}
+  .signal-card:nth-child(5){animation-delay:0.25s}
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:24px; right:24px; z-index:9998;
+    background: var(--panel); border:1px solid var(--accent);
+    padding:12px 20px; border-radius:4px;
+    font-family:'Share Tech Mono',monospace; font-size:12px; color:var(--accent);
+    box-shadow: var(--glow);
+    animation: toastIn 0.3s ease;
+    display:none;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  @media(max-width:900px){
+    main { grid-template-columns:1fr; }
+    .sidebar { grid-column:1; grid-row:auto; }
+    .bottom-row { grid-row:auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast">📡 Signal broadcast via Intercom P2P!</div>
+
+<header>
+  <div class="logo">TRAC<span>SIGNAL</span></div>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <div class="network-status" id="netStatus">INTERCOM P2P · 0 PEERS</div>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-label">LIVE</div>
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<main>
+
+  <!-- SIGNAL BOARD -->
+  <div class="panel signal-board">
+    <div class="panel-header">
+      <div class="panel-title">⚡ Signal Board</div>
+      <div class="panel-badge" id="sigCount">0 SIGNALS</div>
+    </div>
+    <div class="signal-list" id="signalList"></div>
+    <div class="submit-area">
+      <div class="submit-row">
+        <input class="sig-input" id="pairInput" placeholder="Pair (e.g. BTC/USDT)" maxlength="20" />
+        <select class="sig-select" id="typeSelect">
+          <option value="buy">BUY</option>
+          <option value="sell">SELL</option>
+          <option value="neutral">HOLD</option>
+        </select>
+        <input class="sig-input" id="targetInput" placeholder="Target price" style="max-width:130px" />
+        <button class="sig-submit" onclick="submitSignal()">BROADCAST</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- PRICE ORACLE -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🔮 P2P Price Oracle</div>
+        <div class="panel-badge">LIVE FEED</div>
+      </div>
+      <div class="oracle-list" id="oracleList"></div>
+    </div>
+
+    <!-- MARKET SENTIMENT -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">📊 Sentiment Tracker</div>
+      </div>
+      <div class="sentiment-wrap" id="sentimentWrap"></div>
+    </div>
+
+    <!-- P2P NODES -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🌐 Network Nodes</div>
+        <div class="panel-badge" id="nodeCount">0 ONLINE</div>
+      </div>
+      <div class="nodes-wrap">
+        <div class="nodes-vis" id="nodesVis"></div>
+        <div class="nodes-info" id="nodesInfo">Connecting to Intercom mesh...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM ROW: STATS + AGENT LOG -->
+  <div class="panel bottom-row">
+    <div class="panel-header">
+      <div class="panel-title">📟 Agent Activity Log</div>
+      <div class="panel-badge">INTERCOM SIDECHAIN</div>
+    </div>
+    <div class="agent-log-list" id="agentLog"></div>
+  </div>
+
+</main>
+
+<!-- STATS BAR -->
+<div style="position:relative;z-index:1;max-width:1400px;margin:0 auto 16px;padding:0 16px;">
+  <div class="panel">
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-label">Total Signals</div>
+        <div class="stat-value cyan" id="statSignals">0</div>
+        <div class="stat-sub">last 24h</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Bull Consensus</div>
+        <div class="stat-value green" id="statBull">0%</div>
+        <div class="stat-sub">across all pairs</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Bear Consensus</div>
+        <div class="stat-value red" id="statBear">0%</div>
+        <div class="stat-sub">across all pairs</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Agents Online</div>
+        <div class="stat-value yellow" id="statAgents">0</div>
+        <div class="stat-sub">intercom peers</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <strong style="color:var(--accent)">TracSignal</strong> — P2P Crypto Intelligence Hub built on
+  <a href="https://github.com/Trac-Systems/intercom" target="_blank">Intercom</a> by Trac Systems.
+  Trac Address: <span style="color:var(--accent3)">trac1u4dwce3qzyghg4cz3cm7ryewdnjd2rlyupc5fjj2mdn7ftx2ryvqc95cuc</span>
+</footer>
+
+<script>
+// ─── SIMULATED LIVE DATA ───────────────────────────────────────────
+const PAIRS = ['BTC/USDT','ETH/USDT','TAP/BTC','SOL/USDT','BNB/USDT','MATIC/USDT','AVAX/USDT','LINK/USDT'];
+const AGENTS = ['alpha_node','quant_7','signal_bot','oracle_x','arb_hawk','trac_agent','moon_seeker','bear_trap'];
+
+let prices = {
+  'BTC/USDT': 67420.50,
+  'ETH/USDT': 3512.80,
+  'TAP/BTC':  0.00000842,
+  'SOL/USDT': 178.40,
+  'BNB/USDT': 594.20,
+  'MATIC/USDT':0.8230,
+  'AVAX/USDT': 38.90,
+  'LINK/USDT': 18.45,
+};
+
+let signals = [];
+let logEntries = [];
+let peerCount = 0;
+let nodeOnline = 0;
+
+// ─── TICKER ────────────────────────────────────────────────────────
+function renderTicker() {
+  const t = document.getElementById('tickerTrack');
+  const items = Object.entries(prices).map(([pair,price]) => {
+    const chg = ((Math.random()-0.45)*3).toFixed(2);
+    const cls = chg >= 0 ? 'up' : 'dn';
+    const sign = chg >= 0 ? '+' : '';
+    return `<span class="tick-item">
+      <span class="tick-name">${pair}</span>
+      <span class="tick-price">${formatPrice(pair, price)}</span>
+      <span class="tick-chg ${cls}">${sign}${chg}%</span>
+    </span>`;
+  });
+  // duplicate for seamless loop
+  t.innerHTML = items.join('') + items.join('');
+}
+
+function formatPrice(pair, price) {
+  if (pair.includes('BTC') && !pair.startsWith('BTC')) return price.toFixed(8);
+  if (price < 1) return price.toFixed(4);
+  if (price < 100) return price.toFixed(2);
+  return price.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// ─── ORACLE ────────────────────────────────────────────────────────
+function renderOracle() {
+  const el = document.getElementById('oracleList');
+  el.innerHTML = Object.entries(prices).slice(0,6).map(([pair,price]) => {
+    const chg = ((Math.random()-0.45)*4).toFixed(2);
+    const cls = chg >= 0 ? 'up' : 'dn';
+    const sign = chg >= 0 ? '+' : '';
+    return `<div class="oracle-row" id="or_${pair.replace('/','_')}">
+      <span class="o-pair">${pair}</span>
+      <span class="o-price">${formatPrice(pair,price)}</span>
+      <span class="o-chg ${cls}">${sign}${chg}%</span>
+    </div>`;
+  }).join('');
+}
+
+function flashOracle(pair) {
+  const id = 'or_'+pair.replace('/','_');
+  const el = document.getElementById(id);
+  if (!el) return;
+  const up = Math.random() > 0.5;
+  el.classList.add(up ? 'flash-up' : 'flash-dn');
+  setTimeout(() => el.classList.remove('flash-up','flash-dn'), 600);
+}
+
+// ─── PRICE UPDATES ─────────────────────────────────────────────────
+function updatePrices() {
+  Object.keys(prices).forEach(pair => {
+    const move = (Math.random()-0.498)*0.004;
+    prices[pair] *= (1+move);
+    const orEl = document.querySelector(`#or_${pair.replace('/','_')} .o-price`);
+    if (orEl) {
+      orEl.textContent = formatPrice(pair, prices[pair]);
+      flashOracle(pair);
+    }
+  });
+}
+
+// ─── SENTIMENT ─────────────────────────────────────────────────────
+let sentiments = {
+  'BTC/USDT': 65, 'ETH/USDT': 58, 'SOL/USDT': 72,
+};
+function renderSentiment() {
+  const el = document.getElementById('sentimentWrap');
+  el.innerHTML = Object.entries(sentiments).map(([pair,bull]) => {
+    const bear = 100 - bull;
+    return `<div style="margin-bottom:14px">
+      <div class="sent-pair">${pair}</div>
+      <div class="sent-bar-wrap">
+        <div class="sent-bull" style="width:${bull}%">${bull}%</div>
+        <div class="sent-bear" style="width:${bear}%">${bear}%</div>
+      </div>
+      <div class="sent-labels">
+        <span class="bull-label">▲ BULL ${bull}%</span>
+        <span class="bear-label">▼ BEAR ${bear}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateSentiment() {
+  Object.keys(sentiments).forEach(k => {
+    sentiments[k] = Math.max(20, Math.min(80, sentiments[k] + (Math.random()-0.5)*3));
+  });
+  renderSentiment();
+  updateStats();
+}
+
+// ─── SIGNALS ───────────────────────────────────────────────────────
+function generateSignal() {
+  const pair = PAIRS[Math.floor(Math.random()*PAIRS.length)];
+  const types = ['buy','buy','sell','neutral'];
+  const type = types[Math.floor(Math.random()*types.length)];
+  const agent = AGENTS[Math.floor(Math.random()*AGENTS.length)];
+  const conf = Math.floor(60 + Math.random()*40);
+  const target = type==='neutral' ? null : (prices[pair] * (type==='buy' ? 1.05+Math.random()*0.1 : 0.88+Math.random()*0.07)).toFixed(2);
+  signals.unshift({id: Date.now(), pair, type, agent, conf, target, votes:0, time: new Date()});
+  if (signals.length > 8) signals.pop();
+  renderSignals();
+  addLog(agent, `${type.toUpperCase()} signal on ${pair}`, type==='buy'?'buy-msg':type==='sell'?'sell-msg':'warn-msg');
+}
+
+function renderSignals() {
+  const el = document.getElementById('signalList');
+  el.innerHTML = signals.map((s,i) => {
+    const confClass = s.conf >= 80 ? 'high' : s.conf >= 65 ? 'med' : 'low';
+    const timeStr = s.time.toTimeString().slice(0,8);
+    return `<div class="signal-card ${s.type}" style="animation-delay:${i*0.05}s">
+      <span class="signal-badge ${s.type}">${s.type.toUpperCase()}</span>
+      <div class="signal-info">
+        <div class="signal-pair">${s.pair}</div>
+        <div class="signal-meta">
+          via <span>${s.agent}</span> · ${timeStr}
+          ${s.target ? `· target: <span>$${Number(s.target).toLocaleString()}</span>` : ''}
+        </div>
+      </div>
+      <div class="signal-conf">
+        <div class="conf-label">CONF</div>
+        <div class="conf-bar-wrap"><div class="conf-bar ${confClass}" style="width:${s.conf}%"></div></div>
+        <div class="conf-pct">${s.conf}%</div>
+      </div>
+      <div class="signal-votes">
+        <button class="vote-btn up" onclick="vote(${s.id},1)">▲</button>
+        <div class="vote-count">${s.votes>0?'+':''}${s.votes}</div>
+        <button class="vote-btn dn" onclick="vote(${s.id},-1)">▼</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('sigCount').textContent = signals.length + ' SIGNALS';
+  updateStats();
+}
+
+function vote(id, dir) {
+  const s = signals.find(x=>x.id===id);
+  if (s) { s.votes += dir; renderSignals(); }
+}
+
+function submitSignal() {
+  const pair = document.getElementById('pairInput').value.trim().toUpperCase() || 'BTC/USDT';
+  const type = document.getElementById('typeSelect').value;
+  const target = document.getElementById('targetInput').value.trim();
+  const agent = 'user_agent';
+  signals.unshift({ id:Date.now(), pair, type, agent, conf:Math.floor(70+Math.random()*20), target:target||null, votes:0, time:new Date() });
+  if(signals.length>8) signals.pop();
+  renderSignals();
+  addLog('user_agent', `Manual ${type.toUpperCase()} on ${pair} broadcast`, type==='buy'?'buy-msg':'sell-msg');
+  document.getElementById('pairInput').value='';
+  document.getElementById('targetInput').value='';
+  showToast('📡 Signal broadcast via Intercom P2P!');
+}
+
+// ─── AGENT LOG ─────────────────────────────────────────────────────
+function addLog(agent, msg, cls='info-msg') {
+  const now = new Date().toTimeString().slice(0,8);
+  logEntries.unshift({time:now, agent, msg, cls});
+  if(logEntries.length > 50) logEntries.pop();
+  const el = document.getElementById('agentLog');
+  el.innerHTML = logEntries.slice(0,30).map(e =>
+    `<div class="log-entry">
+      <span class="log-time">[${e.time}]</span>
+      <span class="log-agent">${e.agent}</span>
+      <span class="log-msg ${e.cls}">${e.msg}</span>
+    </div>`
+  ).join('');
+}
+
+// ─── NODES ─────────────────────────────────────────────────────────
+function renderNodes() {
+  nodeOnline = 8 + Math.floor(Math.random()*12);
+  const total = 24;
+  const el = document.getElementById('nodesVis');
+  el.innerHTML = Array.from({length:total},(_,i) =>
+    `<div class="node-dot ${i>=nodeOnline?'offline':''}"></div>`
+  ).join('');
+  document.getElementById('nodeCount').textContent = nodeOnline + ' ONLINE';
+  document.getElementById('nodesInfo').innerHTML =
+    `<strong>${nodeOnline}</strong> active agents · <strong>${total-nodeOnline}</strong> offline · relay latency: <strong style="color:var(--green)">${12+Math.floor(Math.random()*40)}ms</strong>`;
+}
+
+// ─── STATS ─────────────────────────────────────────────────────────
+function updateStats() {
+  const buys = signals.filter(s=>s.type==='buy').length;
+  const sells = signals.filter(s=>s.type==='sell').length;
+  const total = signals.length || 1;
+  document.getElementById('statSignals').textContent = 240 + signals.length;
+  document.getElementById('statBull').textContent = Math.round(buys/total*100)+'%';
+  document.getElementById('statBear').textContent = Math.round(sells/total*100)+'%';
+  document.getElementById('statAgents').textContent = nodeOnline || 14;
+}
+
+// ─── PEER COUNT ────────────────────────────────────────────────────
+function updatePeerCount() {
+  peerCount = 8 + Math.floor(Math.random()*20);
+  document.getElementById('netStatus').textContent = `INTERCOM P2P · ${peerCount} PEERS`;
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(()=>t.style.display='none', 3000);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────
+function init() {
+  renderTicker();
+  renderOracle();
+  renderSentiment();
+  renderNodes();
+
+  // seed some initial signals
+  for(let i=0;i<5;i++) generateSignal();
+
+  // seed some log
+  addLog('network','Intercom P2P mesh connected','info-msg');
+  addLog('oracle_x','Price feed initialized from 8 pairs','info-msg');
+  addLog('quant_7','Sentiment model loaded','info-msg');
+
+  // live updates
+  setInterval(()=>{ updatePrices(); renderTicker(); }, 3000);
+  setInterval(generateSignal, 12000);
+  setInterval(updateSentiment, 8000);
+  setInterval(renderNodes, 10000);
+  setInterval(updatePeerCount, 5000);
+  setInterval(()=>{
+    const agents = AGENTS;
+    const msgs = [
+      ['Scanning orderbook depth for breakout...','info-msg'],
+      ['Volume spike detected on BTC/USDT','warn-msg'],
+      ['Sidechain sync complete · 0 errors','info-msg'],
+      ['New peer joined the mesh','info-msg'],
+      ['Consensus reached on ETH signal','buy-msg'],
+    ];
+    const [msg,cls] = msgs[Math.floor(Math.random()*msgs.length)];
+    addLog(agents[Math.floor(Math.random()*agents.length)], msg, cls);
+  }, 6000);
+
+  updatePeerCount();
+  updateStats();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
